@@ -212,7 +212,7 @@ bool isSummerTime(int year, int month, int day, int hour) {
 }
 
 // Funkcja obliczająca dzień tygodnia (algorytm Zellera)
-// Zwraca 0=Niedziela, 1=Poniedziałek, ..., 6=Sobota
+// Zwraca 0=Poniedziałek, ..., 6=Sobota
 int calculateDayOfWeek(int y, int m, int d) {
   if (m < 3) {
     m += 12;
@@ -221,5 +221,5 @@ int calculateDayOfWeek(int y, int m, int d) {
   int k = y % 100;
   int j = y / 100;
   int dayOfWeek = (d + 13*(m+1)/5 + k + k/4 + j/4 + 5*j) % 7;
-  return (dayOfWeek + 5) % 7; // Dostosowanie do formatu 0=Niedziela
+  return (dayOfWeek + 5) % 7; // Dostosowanie do formatu 0=Poniedziałek
 }
