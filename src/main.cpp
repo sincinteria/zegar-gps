@@ -1,4 +1,3 @@
-
 #include <Arduino.h>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
@@ -38,16 +37,20 @@ bool isTimeSet = false; // Flaga wskazująca, czy czas został ustawiony z GPS
 bool showSyncMessage = false; // Flaga wskazująca, czy wyświetlić komunikat
 unsigned long syncMessageDisplayTime = 0; // Czas wyświetlenia komunikatu
 
+// Tablica skrótów dni tygodnia
+const char* dayNames[] = {"Pon", "Wto", "Sro", "Czw", "Pia", "Sob", "Nie"};
+
 // Deklaracje funkcji (prototypy)
 void setTimeAndDateFromGPS();
 void updateLocalTime();
 void displayTimeAndSat();
 void displayDateOrSyncMessage();
 bool isSummerTime(int year, int month, int day, int hour);
+int calculateDayOfWeek(int y, int m, int d);
 
 void setup() {
   // Inicjalizacja komunikacji szeregowej
-  Serial.begin(115200);
+  // Serial.begin(115200);
   gpsSerial.begin(9600, SERIAL_8N1, RX_PIN, TX_PIN);
 
   // Inicjalizacja wyświetlacza LCD
@@ -171,7 +174,12 @@ void displayDateOrSyncMessage() {
       lcd.print("                "); // Wyczyść linię
     }
   } else {
-    // Wyświetl datę w formacie DD.MM.YYYY
+    // Oblicz dzień tygodnia
+    int dayOfWeek = calculateDayOfWeek(localYear, localMonth, localDay);
+    
+    // Wyświetl skróconą nazwę dnia tygodnia i datę
+    lcd.print(dayNames[dayOfWeek]);
+    lcd.print(",  ");
     if (localDay < 10) lcd.print("0");
     lcd.print(localDay);
     lcd.print(".");
@@ -179,11 +187,6 @@ void displayDateOrSyncMessage() {
     lcd.print(localMonth);
     lcd.print(".");
     lcd.print(localYear);
-    if (isSummerTime(localYear, localMonth, localDay, localHour)) {
-      lcd.print("  lato"); // Czas letni (CEST)
-    } else {
-      lcd.print("  zima"); // Czas zimowy (CET)
-    }
   }
 }
 
@@ -206,4 +209,17 @@ bool isSummerTime(int year, int month, int day, int hour) {
     }
   }
   return false; // Czas zimowy
+}
+
+// Funkcja obliczająca dzień tygodnia (algorytm Zellera)
+// Zwraca 0=Niedziela, 1=Poniedziałek, ..., 6=Sobota
+int calculateDayOfWeek(int y, int m, int d) {
+  if (m < 3) {
+    m += 12;
+    y--;
+  }
+  int k = y % 100;
+  int j = y / 100;
+  int dayOfWeek = (d + 13*(m+1)/5 + k + k/4 + j/4 + 5*j) % 7;
+  return (dayOfWeek + 5) % 7; // Dostosowanie do formatu 0=Niedziela
 }
