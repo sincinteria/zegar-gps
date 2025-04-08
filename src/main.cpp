@@ -9,6 +9,15 @@ const int TIME_ZONE_OFFSET_WINTER = 1; // Przesunięcie czasu zimowego (CET)
 const int TIME_ZONE_OFFSET_SUMMER = 2; // Przesunięcie czasu letniego (CEST)
 const int SYNC_MESSAGE_DURATION = 2000; // Czas wyświetlania komunikatu (2 sekundy)
 
+// Konfiguracja podświetlenia LCD
+const int BACKLIGHT_PIN = 10;           // Zmień na właściwy pin sterujący podświetleniem
+const int BRIGHT_BACKLIGHT = 250;       // Jasność w ciągu dnia (max 255)
+const int DIM_BACKLIGHT = 10;           // Przyciemniona jasność w nocy (dostosuj wg potrzeb)
+const int NIGHT_HOUR_START = 21;        // Godzina rozpoczęcia przyciemnienia
+const int NIGHT_HOUR_END = 6;           // Godzina zakończenia przyciemnienia
+// Zmienna do śledzenia stanu podświetlenia
+bool isBacklightDimmed = false;
+
 // Inicjalizacja wyświetlacza LCD
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
@@ -47,6 +56,7 @@ void displayTimeAndSat();
 void displayDateOrSyncMessage();
 bool isSummerTime(int year, int month, int day, int hour);
 int calculateDayOfWeek(int y, int m, int d);
+void updateBacklight();
 
 void setup() {
   // Inicjalizacja komunikacji szeregowej
@@ -55,10 +65,20 @@ void setup() {
 
   // Inicjalizacja wyświetlacza LCD
   Wire.begin(8, 9);  // SDA = GPIO8, SCL = GPIO9
+
+  // Konfiguracja pinu podświetlenia jako wyjście PWM
+  pinMode(BACKLIGHT_PIN, OUTPUT);
+  
+  // Konfiguracja PWM dla ESP32
+  ledcSetup(0, 5000, 8);  // Kanał 0, częstotliwość 5kHz, rozdzielczość 8-bit
+  ledcAttachPin(BACKLIGHT_PIN, 0);  // Przypisanie pinu do kanału PWM
+  ledcWrite(0, BRIGHT_BACKLIGHT);  // Ustawienie początkowe na pełną jasność
+
   lcd.init();
   lcd.backlight();
   lcd.clear();
   lcd.print("Czekam na GPS...");
+  updateBacklight();
 }
 
 void loop() {
@@ -80,6 +100,7 @@ void loop() {
       setTimeAndDateFromGPS();
       showSyncMessage = true; // Ustaw flagę do wyświetlenia komunikatu
       syncMessageDisplayTime = millis(); // Zapisz czas wyświetlenia komunikatu
+      updateBacklight();  // Sprawdź i dostosuj jasność podświetlenia
     }
   }
 
@@ -222,4 +243,24 @@ int calculateDayOfWeek(int y, int m, int d) {
   int j = y / 100;
   int dayOfWeek = (d + 13*(m+1)/5 + k + k/4 + j/4 + 5*j) % 7;
   return (dayOfWeek + 5) % 7; // Dostosowanie do formatu 0=Poniedziałek
+}
+
+// Nowa funkcja do aktualizacji jasności podświetlenia na podstawie godziny
+void updateBacklight() {
+  // Sprawdź, czy jest noc (między NIGHT_HOUR_START a NIGHT_HOUR_END)
+
+  int currentHour = localHour;
+  bool isNightTime = (currentHour >= NIGHT_HOUR_START || currentHour < NIGHT_HOUR_END);
+
+  // Zmień jasność tylko gdy zmienia się stan (dzień/noc)
+  if (isNightTime && !isBacklightDimmed) {
+    // Przyciemnij podświetlenie na noc
+    ledcWrite(0, DIM_BACKLIGHT);
+    isBacklightDimmed = true;
+  } 
+  else if (!isNightTime && isBacklightDimmed) {
+    // Rozjaśnij podświetlenie na dzień
+    ledcWrite(0, BRIGHT_BACKLIGHT);
+    isBacklightDimmed = false;
+  }
 }
