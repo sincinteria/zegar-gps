@@ -29,7 +29,7 @@ GPIO8 (SDA)    →   SDA
 GPIO9 (SCL)    →   SCL
 3.3V           →   VCC
 GND            →   GND
-
+```
 ## 🚀 Quick Start
 Clone this repository
 Open in VSCode with PlatformIO
