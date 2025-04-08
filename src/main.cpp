@@ -95,7 +95,7 @@ void loop() {
   }
 
   // Synchronizacja czasu i daty z GPS co określony interwał
-  if (isTimeSet && millis() - lastSyncTime >= SYNC_INTERVAL) {
+  if (isTimeSet && (unsigned long)millis() - lastSyncTime >= SYNC_INTERVAL) {
     if (gps.time.isValid() && gps.date.isValid()) {
       setTimeAndDateFromGPS();
       showSyncMessage = true; // Ustaw flagę do wyświetlenia komunikatu
@@ -105,7 +105,8 @@ void loop() {
   }
 
   // Aktualizacja czasu lokalnego co 1 sekundę
-  if (isTimeSet && millis() - lastUpdateTime >= 1000) {
+  if (isTimeSet && (unsigned long)(millis() - lastUpdateTime) >= 1000)
+  {
     updateLocalTime();
     displayTimeAndSat();
     lastUpdateTime = millis();
@@ -189,7 +190,7 @@ void displayDateOrSyncMessage() {
     lcd.print("Pobrano czas GPS");
 
     // Sprawdź, czy minęły 2 sekundy od wyświetlenia komunikatu
-    if (millis() - syncMessageDisplayTime >= SYNC_MESSAGE_DURATION) {
+    if ((unsigned long)(millis() - syncMessageDisplayTime) >= SYNC_MESSAGE_DURATION){
       showSyncMessage = false; // Ukryj komunikat
       lcd.setCursor(0, 1);
       lcd.print("                "); // Wyczyść linię
