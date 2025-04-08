@@ -65,6 +65,7 @@ void setup() {
 
   // Inicjalizacja wyświetlacza LCD
   Wire.begin(8, 9);  // SDA = GPIO8, SCL = GPIO9
+  Wire.setClock(400000); // Szybszy I2C
 
   // Konfiguracja pinu podświetlenia jako wyjście PWM
   pinMode(BACKLIGHT_PIN, OUTPUT);
