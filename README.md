@@ -30,21 +30,16 @@ GPIO9 (SCL)    →   SCL
 3.3V           →   VCC
 GND            →   GND
 
-🚀 Quick Start
+## 🚀 Quick Start
 Clone this repository
-
 Open in VSCode with PlatformIO
-
 Connect hardware as per wiring diagram
-
 Upload and monitor serial port (115200 baud)
 
-🌟 Advanced Features
+## 🌟 Advanced Features
 Configurable sync interval (default: 2 minutes)
-
 NTP fallback (Wi-Fi capable)
-
 Battery backup support (optional)
 
-📜 License
+## 📜 License
 MIT License - Free for personal and commercial use
