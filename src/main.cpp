@@ -49,9 +49,6 @@ unsigned long syncMessageDisplayTime = 0; // Czas wyświetlenia komunikatu
 // Tablica skrótów dni tygodnia
 const char* dayNames[] = {"Pon", "Wto", "Sro", "Czw", "Pia", "Sob", "Nie"};
 
-// Dodaj nową stałą konfiguracyjną
-const bool USE_MULTI_GNSS = true; // Włącz obsługę wielu systemów nawigacyjnych (GPS+GLONASS)
-
 // Deklaracje funkcji (prototypy)
 void setTimeAndDateFromGPS();
 void updateLocalTime();
@@ -65,13 +62,6 @@ void setup() {
   // Inicjalizacja komunikacji szeregowej
   // Serial.begin(115200);
   gpsSerial.begin(9600, SERIAL_8N1, RX_PIN, TX_PIN);
-
-    // Konfiguracja modułu GPS/GLONASS (jeśli moduł obsługuje komendy NMEA)
-    if (USE_MULTI_GNSS) {
-      // Komenda włączająca tryb GPS+GLONASS dla modułów u-blox
-      gpsSerial.write("$PUBX,41,1,0007,0003,9600,0*10");
-      delay(100);
-    }
 
   // Inicjalizacja wyświetlacza LCD
   Wire.begin(8, 9);  // SDA = GPIO8, SCL = GPIO9
@@ -183,13 +173,7 @@ void displayTimeAndSat() {
   lcd.print(localSecond);
 
   // Wyświetl liczbę satelitów
-  lcd.print(" ");
-  if (USE_MULTI_GNSS) {
-    lcd.print("G+R:"); // GPS+GLONASS
-  } else {
-    lcd.print("sat:"); // Tylko GPS
-  }
-
+  lcd.print("  sat:");  
   if (gps.satellites.isValid()) {
     if (gps.satellites.value() < 10) lcd.print("0"); // Dodaj zero wiodące dla jednocyfrowej liczby
     lcd.print(gps.satellites.value());
