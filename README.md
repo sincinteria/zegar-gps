@@ -19,16 +19,19 @@
 | Display | 16x2 I2C LCD (PCF8574 @ 0x27) |
 | Antenna | Integrated ceramic patch |
 
-## 🔌 Wiring Diagram
+# 🔌 Wiring Diagram - ESP32-S2 Mini + GP-02-Kit + LCD
 ```plaintext
-ESP32-S2 Mini  ↔  GP-02-Kit  ↔  I2C LCD
-───────────────────────────────────────
-GPIO18 (RX)    →   TX
-GPIO17 (TX)    →   RX
-GPIO8 (SDA)    →   SDA
-GPIO9 (SCL)    →   SCL
-3.3V           →   VCC
-GND            →   GND
+───────────────────────────────────────────
+| ESP32-S2 Mini | GP-02-Kit | I2C LCD 16x2 |
+|---------------|-----------|--------------|
+| 5V (Pin VBUS)  |   VCC     |    VCC       |
+| GND (Pin 3)   |   GND     |    VSS       |
+| GPIO17 (TX)   |   RX      |     -        |
+| GPIO18 (RX)   |   TX      |     -        |
+| GPIO8 (SDA)   |    -      |    SDA       |
+| GPIO9 (SCL)   |    -      |    SCL       |
+| GPIO10        |    -      |  ANODE*  |
+───────────────────────────────────────────
 ```
 ## 🚀 Quick Start
 Clone this repository
