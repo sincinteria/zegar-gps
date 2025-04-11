@@ -42,9 +42,14 @@ This project implements a digital clock on an ESP32 microcontroller that synchro
 | GPIO18 (RX)   |   TX      |     -        |
 | GPIO8 (SDA)   |    -      |    SDA       |
 | GPIO9 (SCL)   |    -      |    SCL       |
-| GPIO10        |    -      |    ANODE*    |
+| GPIO10        |    -      | ANODE LCD*   |
 ───────────────────────────────────────────
+* Remove the jumper marked with a red dot.
+Then, connect GPIO 10 of the ESP32 to the LCD backlight control pin to enable PWM dimming.
 ```
+![image](https://github.com/user-attachments/assets/3fb7b169-b397-40a9-9b90-3bbae7ca0044)
+
+
 ## ⚙️ Operation
 1. On startup, the device will display "RTC GPS Sync" and then wait for a valid GPS signal
 2. The screen will show "Czekam na GPS..." with satellite count and fix status while searching
