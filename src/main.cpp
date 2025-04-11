@@ -1,268 +1,268 @@
 #include <Arduino.h>
-#include <Wire.h>
+#include <WiFi.h>
 #include <LiquidCrystal_I2C.h>
 #include <TinyGPS++.h>
+#include <time.h>
 
-// Stałe konfiguracyjne
-const int SYNC_INTERVAL = 120000; // 2 minuty (w ms)
-const int TIME_ZONE_OFFSET_WINTER = 1; // Przesunięcie czasu zimowego (CET)
-const int TIME_ZONE_OFFSET_SUMMER = 2; // Przesunięcie czasu letniego (CEST)
-const int SYNC_MESSAGE_DURATION = 2000; // Czas wyświetlania komunikatu (2 sekundy)
-
-// Konfiguracja podświetlenia LCD
-const int BACKLIGHT_PIN = 10;           // Zmień na właściwy pin sterujący podświetleniem
-const int BRIGHT_BACKLIGHT = 250;       // Jasność w ciągu dnia (max 255)
-const int DIM_BACKLIGHT = 10;           // Przyciemniona jasność w nocy (dostosuj wg potrzeb)
-const int NIGHT_HOUR_START = 21;        // Godzina rozpoczęcia przyciemnienia
-const int NIGHT_HOUR_END = 6;           // Godzina zakończenia przyciemnienia
-// Zmienna do śledzenia stanu podświetlenia
-bool isBacklightDimmed = false;
-
-// Inicjalizacja wyświetlacza LCD
+// Konfiguracja LCD
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
-// Inicjalizacja obiektu TinyGPS++
+// Konfiguracja GPS
 TinyGPSPlus gps;
-
-// Definiowanie pinów dla UART (RX, TX)
 #define RX_PIN 18
 #define TX_PIN 17
-
-// Użycie wbudowanego UART1 (Serial1) do komunikacji z modułem GPS
 HardwareSerial gpsSerial(1);
 
-// Zmienne do przechowywania czasu i daty
-int localHour = 0;
-int localMinute = 0;
-int localSecond = 0;
-int localDay = 0;
-int localMonth = 0;
-int localYear = 0;
-unsigned long lastSyncTime = 0; // Ostatni czas synchronizacji z GPS
-unsigned long lastUpdateTime = 0; // Ostatni czas aktualizacji wyświetlacza
-bool isTimeSet = false; // Flaga wskazująca, czy czas został ustawiony z GPS
+// Zmienne do synchronizacji czasu
+uint32_t lastSyncTime = 0;
+const uint32_t SYNC_INTERVAL = 3600000UL;
+bool gpsTimeValid = false;
 
-// Zmienne do wyświetlania komunikatu synchronizacji
-bool showSyncMessage = false; // Flaga wskazująca, czy wyświetlić komunikat
-unsigned long syncMessageDisplayTime = 0; // Czas wyświetlenia komunikatu
+// Konfiguracja podświetlenia LCD
+const int BACKLIGHT_PIN = 10;           // PWM capable pin
+const int BRIGHT_BACKLIGHT = 250;       // Jasność w dzień
+const int DIM_BACKLIGHT = 10;           // Jasność w nocy
+const int NIGHT_HOUR_START = 21;        // Godzina rozpoczęcia przyciemnienia
+const int NIGHT_HOUR_END = 6;           // Godzina zakończenia przyciemnienia
+bool isBacklightDimmed = false;
+int currentHour = 0;
+byte customCharS[8] = 
+  {B00010,B01111,B10000,B01110,B00001,B00001,B11110,B00000}; // Ś
+byte customChara[8] =
+  {B00000,B01110,B00001,B01111,B10001,B01111,B00010,B00001}; // ą 
 
-// Tablica skrótów dni tygodnia
-const char* dayNames[] = {"Pon", "Wto", "Sro", "Czw", "Pia", "Sob", "Nie"};
+// Tablica skrótów nazw dni tygodnia
+const char* dniTygodnia[] = {"Nie", "Pon", "Wto", "\5ro", "Czw", "Pi\1", "Sob"};
 
-// Deklaracje funkcji (prototypy)
-void setTimeAndDateFromGPS();
-void updateLocalTime();
-void displayTimeAndSat();
-void displayDateOrSyncMessage();
-bool isSummerTime(int year, int month, int day, int hour);
-int calculateDayOfWeek(int y, int m, int d);
-void updateBacklight();
+// Minimalna liczba satelitów wymagana do uznania fiksa za dobry
+const int MIN_SATELLITES = 3;
 
-void setup() {
-  // Inicjalizacja komunikacji szeregowej
-  // Serial.begin(115200);
-  gpsSerial.begin(9600, SERIAL_8N1, RX_PIN, TX_PIN);
-
-  // Inicjalizacja wyświetlacza LCD
-  Wire.begin(8, 9);  // SDA = GPIO8, SCL = GPIO9
-  Wire.setClock(400000); // Szybszy I2C
-
-  // Konfiguracja pinu podświetlenia jako wyjście PWM
-  pinMode(BACKLIGHT_PIN, OUTPUT);
-  
-  // Konfiguracja PWM dla ESP32
-  ledcSetup(0, 5000, 8);  // Kanał 0, częstotliwość 5kHz, rozdzielczość 8-bit
-  ledcAttachPin(BACKLIGHT_PIN, 0);  // Przypisanie pinu do kanału PWM
-  ledcWrite(0, BRIGHT_BACKLIGHT);  // Ustawienie początkowe na pełną jasność
-
-  lcd.init();
-  lcd.backlight();
+bool waitForGPSSync() {
   lcd.clear();
+  lcd.setCursor(0, 0);
   lcd.print("Czekam na GPS...");
-  updateBacklight();
-}
+  lcd.setCursor(0, 1);
+  lcd.print("Sat: 0  Fix: NIE");
 
-void loop() {
-  // Sprawdzanie, czy dostępne są nowe dane z modułu GPS
-  while (gpsSerial.available() > 0) {
-    gps.encode(gpsSerial.read());
-  }
+  uint32_t startTime = millis();
+  int dotCount = 0;
+  uint32_t lastDotUpdate = 0;
+  uint32_t lastInfoUpdate = 0;
+  bool hasFix = false;
 
-  // Jeśli czas i data nie zostały jeszcze ustawione z GPS, ustaw je
-  if (!isTimeSet && gps.time.isValid() && gps.date.isValid()) {
-    setTimeAndDateFromGPS();
-    isTimeSet = true;
-    lcd.clear(); // Wyczyść ekran po ustawieniu czasu i daty
-  }
-
-  // Synchronizacja czasu i daty z GPS co określony interwał
-  if (isTimeSet && (unsigned long)millis() - lastSyncTime >= SYNC_INTERVAL) {
-    if (gps.time.isValid() && gps.date.isValid()) {
-      setTimeAndDateFromGPS();
-      showSyncMessage = true; // Ustaw flagę do wyświetlenia komunikatu
-      syncMessageDisplayTime = millis(); // Zapisz czas wyświetlenia komunikatu
-      updateBacklight();  // Sprawdź i dostosuj jasność podświetlenia
+  while (true) {
+    // Animacja kropek
+    if (millis() - lastDotUpdate > 500) {
+      lastDotUpdate = millis();
+      lcd.setCursor(14, 0);
+      for (int i = 0; i < dotCount; i++) {
+        lcd.print(".");
+      }
+      for (int i = dotCount; i < 2; i++) {
+        lcd.print(" ");
+      }
+      dotCount = (dotCount + 1) % 3;
     }
-  }
-
-  // Aktualizacja czasu lokalnego co 1 sekundę
-  if (isTimeSet && (unsigned long)(millis() - lastUpdateTime) >= 1000)
-  {
-    updateLocalTime();
-    displayTimeAndSat();
-    lastUpdateTime = millis();
-  }
-
-  // Wyświetlanie daty lub komunikatu synchronizacji
-  displayDateOrSyncMessage();
-}
-
-// Funkcja do ustawiania czasu i daty z GPS
-void setTimeAndDateFromGPS() {
-  localHour = gps.time.hour();
-  localMinute = gps.time.minute();
-  localSecond = gps.time.second();
-  localDay = gps.date.day();
-  localMonth = gps.date.month();
-  localYear = gps.date.year();
-
-  // Sprawdź, czy obowiązuje czas letni czy zimowy
-  if (isSummerTime(localYear, localMonth, localDay, localHour)) {
-    localHour += TIME_ZONE_OFFSET_SUMMER; // Czas letni (CEST)
-  } else {
-    localHour += TIME_ZONE_OFFSET_WINTER; // Czas zimowy (CET)
-  }
-
-  // Przetwarzaj godziny powyżej 23
-  if (localHour >= 24) {
-    localHour -= 24;
-    localDay++; // Przesuń dzień, jeśli przekroczono północ
-  }
-
-  lastSyncTime = millis();
-}
-
-// Funkcja do aktualizacji czasu lokalnego
-void updateLocalTime() {
-  localSecond++;
-  if (localSecond >= 60) {
-    localSecond = 0;
-    localMinute++;
-    if (localMinute >= 60) {
-      localMinute = 0;
-      localHour++;
-      if (localHour >= 24) {
-        localHour = 0;
-        localDay++; // Przesuń dzień, jeśli przekroczono północ
+    
+    // Aktualizacja informacji o satelitach i fiksie
+    if (millis() - lastInfoUpdate > 1000) {
+      lastInfoUpdate = millis();
+      
+      // Aktualizacja liczby satelitów
+      lcd.setCursor(5, 1);
+      lcd.print("  ");
+      lcd.setCursor(5, 1);
+      if (gps.satellites.isValid()) {
+        lcd.print(gps.satellites.value());
+      } else {
+        lcd.print("0");
+      }
+      
+      // Aktualizacja statusu fiksa
+      lcd.setCursor(13, 1);
+      if (gps.location.isValid() && gps.satellites.isValid() && gps.satellites.value() >= MIN_SATELLITES) {
+        lcd.print("TAK");
+        hasFix = true;
+      } else {
+        lcd.print("NIE");
+        hasFix = false;
       }
     }
+    
+    while (gpsSerial.available() > 0) {
+      if (gps.encode(gpsSerial.read())) {
+        if (gps.time.isValid() && gps.date.isValid() && gps.location.isValid() && 
+            gps.satellites.isValid() && gps.satellites.value() >= MIN_SATELLITES) {
+          
+          // Mamy czas, datę i lokalizację oraz wystarczającą liczbę satelitów
+          struct tm tm;
+          tm.tm_year = gps.date.year() - 1900;
+          tm.tm_mon = gps.date.month() - 1;
+          tm.tm_mday = gps.date.day();
+          currentHour = gps.time.hour() + 2;
+          tm.tm_hour = currentHour;
+          tm.tm_min = gps.time.minute();
+          tm.tm_sec = gps.time.second();
+          tm.tm_isdst = -1;
+
+          time_t t = mktime(&tm);
+          struct timeval tv = { t, 0 };
+          settimeofday(&tv, NULL);
+
+          lcd.clear();
+          lcd.setCursor(0, 0);
+          lcd.print("GPS Sync OK!");
+          lcd.setCursor(0, 1);
+          lcd.print("SAT: ");
+          lcd.print(gps.satellites.value());
+          lcd.print(" FIX: TAK");
+          delay(2000);
+          return true;
+        }
+      }
+    }
+    
+    // Pokaż, że nadal czekamy, ale nie przerywaj
+    delay(10);
   }
 }
 
-// Funkcja do wyświetlania czasu i liczby satelitów
-void displayTimeAndSat() {
+void syncTimeWithGPS() {
+  // Funkcja przywrócona do oryginalnej formy
   lcd.setCursor(0, 0);
-  // Wyświetl czas w formacie HH:MM:SS
-  if (localHour < 10) lcd.print("0");
-  lcd.print(localHour);
-  lcd.print(":");
-  if (localMinute < 10) lcd.print("0");
-  lcd.print(localMinute);
-  lcd.print(":");
-  if (localSecond < 10) lcd.print("0");
-  lcd.print(localSecond);
+  lcd.print("Sync GPS...     ");
 
-  // Wyświetl liczbę satelitów
-  lcd.print("  sat:");  
+  uint32_t startTime = millis();
+  while ((uint32_t)(millis() - startTime) < 10000UL) {
+    while (gpsSerial.available() > 0) {
+      if (gps.encode(gpsSerial.read())) {
+        if (gps.time.isValid() && gps.date.isValid()) {
+          struct tm tm;
+          tm.tm_year = gps.date.year() - 1900;
+          tm.tm_mon = gps.date.month() - 1;
+          tm.tm_mday = gps.date.day();
+          currentHour = gps.time.hour() + 2;
+          tm.tm_hour = currentHour;
+          tm.tm_min = gps.time.minute();
+          tm.tm_sec = gps.time.second();
+          tm.tm_isdst = -1;
+
+          time_t t = mktime(&tm);
+          struct timeval tv = { t, 0 };
+          settimeofday(&tv, NULL);
+
+          gpsTimeValid = true;
+          lcd.setCursor(0, 0);
+          lcd.print("GPS Sync OK!    ");
+          delay(1000);
+          return;
+        }
+      }
+    }
+    delay(10);
+  }
+
+  lcd.setCursor(0, 0);
+  lcd.print("GPS Sync FAIL!  ");
+  delay(1000);
+}
+
+void displayTimeOnLCD() {
+  time_t now = time(nullptr);
+  struct tm* p_tm = localtime(&now);
+  currentHour = p_tm->tm_hour;
+  
+  // Sprawdzenie czy jest godzina 5:00:00 - restart
+  if (p_tm->tm_hour == 5 && p_tm->tm_min == 0 && p_tm->tm_sec == 0) {
+    lcd.setCursor(0, 0);  // Dodatkowa informacja na LCD (opcjonalnie)
+    lcd.print("Restarting...   ");
+    delay(1000);  // Krótkie opóźnienie na wyświetlenie komunikatu
+    ESP.restart();  // Wykonaj restart ESP32
+  }
+
+  char timeStringBuff[9];
+  strftime(timeStringBuff, sizeof(timeStringBuff), "%H:%M:%S", p_tm);
+  
+  lcd.setCursor(0, 0);
+  lcd.print(timeStringBuff);
+  
+  lcd.setCursor(9, 0);
+  lcd.print(" SAT:");
   if (gps.satellites.isValid()) {
-    if (gps.satellites.value() < 10) lcd.print("0"); // Dodaj zero wiodące dla jednocyfrowej liczby
+    lcd.print(gps.satellites.value() < 10 ? "0" : "");
     lcd.print(gps.satellites.value());
   } else {
     lcd.print("--");
   }
 }
 
-// Funkcja do wyświetlania daty lub komunikatu synchronizacji
-void displayDateOrSyncMessage() {
+void displayDateOnLCD() {
+  time_t now = time(nullptr);
+  struct tm* p_tm = localtime(&now);
+  
+  char dateStringBuff[11];
+  strftime(dateStringBuff, sizeof(dateStringBuff), "%d.%m.%Y", p_tm);
+  
   lcd.setCursor(0, 1);
-
-  if (showSyncMessage) {
-    // Wyświetl komunikat "Pobrano czas GPS"
-    lcd.print("Pobrano czas GPS");
-
-    // Sprawdź, czy minęły 2 sekundy od wyświetlenia komunikatu
-    if ((unsigned long)(millis() - syncMessageDisplayTime) >= SYNC_MESSAGE_DURATION){
-      showSyncMessage = false; // Ukryj komunikat
-      lcd.setCursor(0, 1);
-      lcd.print("                "); // Wyczyść linię
-    }
-  } else {
-    // Oblicz dzień tygodnia
-    int dayOfWeek = calculateDayOfWeek(localYear, localMonth, localDay);
-    
-    // Wyświetl skróconą nazwę dnia tygodnia i datę
-    lcd.print(dayNames[dayOfWeek]);
-    lcd.print(",  ");
-    if (localDay < 10) lcd.print("0");
-    lcd.print(localDay);
-    lcd.print(".");
-    if (localMonth < 10) lcd.print("0");
-    lcd.print(localMonth);
-    lcd.print(".");
-    lcd.print(localYear);
-  }
+  lcd.print(" ");
+  lcd.print(dniTygodnia[p_tm->tm_wday]);
+  lcd.print(", ");
+  lcd.print(dateStringBuff);
 }
 
-// Funkcja sprawdzająca, czy obowiązuje czas letni
-bool isSummerTime(int year, int month, int day, int hour) {
-  // Czas letni obowiązuje od ostatniej niedzieli marca do ostatniej niedzieli października
-  if (month > 3 && month < 10) {
-    return true; // Kwiecień–Wrzesień: czas letni
-  } else if (month == 3) {
-    // Marzec: czas letni zaczyna się ostatniej niedzieli
-    int lastSunday = 31 - (5 * year / 4 + 4) % 7; // Oblicz ostatnią niedzielę marca
-    if (day > lastSunday || (day == lastSunday && hour >= 2)) {
-      return true;
-    }
-  } else if (month == 10) {
-    // Październik: czas letni kończy się ostatniej niedzieli
-    int lastSunday = 31 - (5 * year / 4 + 1) % 7; // Oblicz ostatnią niedzielę października
-    if (day < lastSunday || (day == lastSunday && hour < 3)) {
-      return true;
-    }
-  }
-  return false; // Czas zimowy
-}
-
-// Funkcja obliczająca dzień tygodnia (algorytm Zellera)
-// Zwraca 0=Poniedziałek, ..., 6=Sobota
-int calculateDayOfWeek(int y, int m, int d) {
-  if (m < 3) {
-    m += 12;
-    y--;
-  }
-  int k = y % 100;
-  int j = y / 100;
-  int dayOfWeek = (d + 13*(m+1)/5 + k + k/4 + j/4 + 5*j) % 7;
-  return (dayOfWeek + 5) % 7; // Dostosowanie do formatu 0=Poniedziałek
-}
-
-// Nowa funkcja do aktualizacji jasności podświetlenia na podstawie godziny
 void updateBacklight() {
-  // Sprawdź, czy jest noc (między NIGHT_HOUR_START a NIGHT_HOUR_END)
-
-  int currentHour = localHour;
   bool isNightTime = (currentHour >= NIGHT_HOUR_START || currentHour < NIGHT_HOUR_END);
 
-  // Zmień jasność tylko gdy zmienia się stan (dzień/noc)
   if (isNightTime && !isBacklightDimmed) {
-    // Przyciemnij podświetlenie na noc
-    ledcWrite(0, DIM_BACKLIGHT);
+    analogWrite(BACKLIGHT_PIN, DIM_BACKLIGHT);
     isBacklightDimmed = true;
   } 
   else if (!isNightTime && isBacklightDimmed) {
-    // Rozjaśnij podświetlenie na dzień
-    ledcWrite(0, BRIGHT_BACKLIGHT);
+    analogWrite(BACKLIGHT_PIN, BRIGHT_BACKLIGHT);
     isBacklightDimmed = false;
   }
+}
+
+void setup() {
+  Serial.begin(115200);
+  gpsSerial.begin(9600, SERIAL_8N1, RX_PIN, TX_PIN);
+
+  // Inicjalizacja podświetlenia LCD
+  pinMode(BACKLIGHT_PIN, OUTPUT);
+  analogWrite(BACKLIGHT_PIN, BRIGHT_BACKLIGHT);
+
+  // Inicjalizacja LCD
+  Wire.begin(8, 9);
+  Wire.setClock(400000);
+  lcd.init();
+  lcd.createChar(5, customCharS);
+  lcd.createChar(1, customChara);
+  lcd.backlight();
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("RTC GPS Sync");
+  delay(1000);
+
+  // Czekamy na synchronizację z GPS przed kontynuowaniem
+  gpsTimeValid = waitForGPSSync();
+  lastSyncTime = millis();
+  
+  lcd.clear();
+}
+
+void loop() {
+  if ((uint32_t)(millis() - lastSyncTime) >= SYNC_INTERVAL) {
+    syncTimeWithGPS();
+    lastSyncTime = millis();
+  }
+
+  displayTimeOnLCD();
+  displayDateOnLCD();
+  updateBacklight();
+
+  while (gpsSerial.available() > 0) {
+    gps.encode(gpsSerial.read());
+  }
+
+  delay(20);
 }
