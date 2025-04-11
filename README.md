@@ -3,7 +3,7 @@
 ![Project Banner](https://via.placeholder.com/800x300?text=ESP32-S2+Mini+GPS+Clock)  
 *Precise multi-GNSS time synchronization with automatic DST adjustment*
 
-## Overview
+## 👀 Overview
 This project implements a digital clock on an ESP32 microcontroller that synchronizes time via GPS signals. It displays current time, date, day of the week, and satellite status on a 16x2 I2C LCD display. The display's backlight automatically dims during nighttime hours for better visibility in low-light conditions.
 
 ## 📌 Features
@@ -45,7 +45,7 @@ This project implements a digital clock on an ESP32 microcontroller that synchro
 | GPIO10        |    -      |    ANODE*    |
 ───────────────────────────────────────────
 ```
-## Operation
+## ⚙️ Operation
 1. On startup, the device will display "RTC GPS Sync" and then wait for a valid GPS signal
 2. The screen will show "Czekam na GPS..." with satellite count and fix status while searching
 3. After establishing a GPS fix with at least 3 satellites, time will be synchronized
@@ -54,7 +54,7 @@ This project implements a digital clock on an ESP32 microcontroller that synchro
 6. The display backlight dims between 21:00 and 6:00
 7. The device automatically restarts every day at 5:00 AM
 
-## Customization
+## 🎨 Customization
 The following parameters can be adjusted in the code:
 
 ### LCD Configuration
@@ -83,12 +83,12 @@ const uint32_t SYNC_INTERVAL = 3600000UL;  // Re-sync interval in milliseconds (
 const int MIN_SATELLITES = 3;  // Minimum satellites required for a valid fix
 ```
 
-## Troubleshooting
+## 🐛 Troubleshooting
 - If the LCD shows "GPS Sync FAIL!", check your GPS module's connections and ensure it has a clear view of the sky
 - If special characters aren't displaying correctly, verify the I2C connection and address
 - If time appears incorrect, verify the time zone adjustment in the code (currently +2 hours)
 - 
-## Dependencies
+## 📦 Dependencies
 - Arduino.h
 - WiFi.h
 - LiquidCrystal_I2C
