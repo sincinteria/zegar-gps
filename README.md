@@ -37,7 +37,7 @@ This project implements a digital clock on an ESP32 microcontroller that synchro
 | ESP32-S2 Mini | GP-02-Kit | I2C LCD 16x2 |
 |---------------|-----------|--------------|
 | 5V (Pin VBUS) |   VCC     |    VCC       |
-| GND (Pin 3)   |   GND     |    VSS       |
+| GND (Pin 3)   |   GND     |  VSS/GND     |
 | GPIO17 (TX)   |   RX      |     -        |
 | GPIO18 (RX)   |   TX      |     -        |
 | GPIO8 (SDA)   |    -      |    SDA       |
