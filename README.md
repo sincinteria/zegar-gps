@@ -90,11 +90,10 @@ const int MIN_SATELLITES = 3;  // Minimum satellites required for a valid fix
 
 ## 📦 Dependencies
 - Arduino.h
-- WiFi.h
+- wire.h
 - LiquidCrystal_I2C
 - TinyGPS++
 - time.h
-- wire.h
 
 ## 🚀 Quick Start
 Clone this repository
