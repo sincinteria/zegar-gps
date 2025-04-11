@@ -27,7 +27,7 @@ This project implements a digital clock on an ESP32 microcontroller that synchro
 | Component | Specification |
 |-----------|---------------|
 | MCU | ESP32-S2 Mini |
-| GNSS Module | GP-02-Kit (AT6558R) |
+| GPS Module | GP-02-Kit (AT6558R) |
 | Display | 16x2 I2C LCD (PCF8574 @ 0x27) |
 | Antenna | Integrated ceramic patch |
 
