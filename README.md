@@ -87,7 +87,7 @@ const int MIN_SATELLITES = 3;  // Minimum satellites required for a valid fix
 - If the LCD shows "GPS Sync FAIL!", check your GPS module's connections and ensure it has a clear view of the sky
 - If special characters aren't displaying correctly, verify the I2C connection and address
 - If time appears incorrect, verify the time zone adjustment in the code (currently +2 hours)
-- 
+
 ## 📦 Dependencies
 - Arduino.h
 - WiFi.h
