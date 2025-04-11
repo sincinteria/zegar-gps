@@ -31,6 +31,10 @@ This project implements a digital clock on an ESP32 microcontroller that synchro
 | Display | 16x2 I2C LCD (PCF8574 @ 0x27) |
 | Antenna | Integrated ceramic patch |
 
+![image](https://github.com/user-attachments/assets/7a30d073-9e98-4a0b-86a8-0a8b02b96ce6)
+![gps](https://github.com/user-attachments/assets/4aad349c-5afe-4a8e-9166-d0f13dc339fa)
+![esp32](https://github.com/user-attachments/assets/ea1c419f-11a7-4cd5-a082-87febd460633)
+
 # 🔌 Wiring Diagram - ESP32-S2 Mini + GP-02-Kit + LCD
 ```plaintext
 ───────────────────────────────────────────
@@ -47,8 +51,7 @@ This project implements a digital clock on an ESP32 microcontroller that synchro
 * Remove the jumper marked with a red dot.
 Then, connect GPIO 10 of the ESP32 to the LCD Backlight Control Pin to enable PWM dimming.
 ```
-![image](https://github.com/user-attachments/assets/3fb7b169-b397-40a9-9b90-3bbae7ca0044)
-
+![i2c](https://github.com/user-attachments/assets/b5e58a6c-2006-4d3f-b6d9-4e5d848dfb9c)
 
 ## ⚙️ Operation
 1. On startup, the device will display "RTC GPS Sync" and then wait for a valid GPS signal
