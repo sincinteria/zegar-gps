@@ -45,7 +45,7 @@ This project implements a digital clock on an ESP32 microcontroller that synchro
 | GPIO10        |    -      | ANODE LCD*   |
 ───────────────────────────────────────────
 * Remove the jumper marked with a red dot.
-Then, connect GPIO 10 of the ESP32 to the LCD backlight control pin to enable PWM dimming.
+Then, connect GPIO 10 of the ESP32 to the LCD Backlight Control Pin to enable PWM dimming.
 ```
 ![image](https://github.com/user-attachments/assets/3fb7b169-b397-40a9-9b90-3bbae7ca0044)
 
