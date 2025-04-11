@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include <WiFi.h>
+#include <wire.h>
 #include <LiquidCrystal_I2C.h>
 #include <TinyGPS++.h>
 #include <time.h>
