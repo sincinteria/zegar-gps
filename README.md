@@ -64,7 +64,7 @@ The following parameters can be adjusted in the code:
 
 ### LCD Configuration
 ```cpp
-LiquidCrystal_I2C lcd(0x27, 16, 2); // Change I2C address if needed
+LiquidCrystal_I2C lcd(0x27, 16, 2); // Try 0x3F if display doesn't work
 ```
 
 ### GPS Serial Configuration
